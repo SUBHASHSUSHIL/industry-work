@@ -1,0 +1,2767 @@
+//Create API  Authentication & Autherization
+
+All Package Installation
+1.Microsoft.AspNetCore.Authentication.JwtBearer(8.0.0)
+2.Microsoft.AspNetCore.Identity.EntityFrameworkCore(8.0.0)
+3.Microsoft.EntityFrameworkCore.Design(8.0.0)
+4.Microsoft.EntityFrameworkCore.Tools(8.0.0)
+5.Microsoft.IdentityModel.Tokens(8.0.0)
+6.Pomelo.EntityFrameworkCore.MySql(8.0.0)
+7.Swashbuckle.AspNetCore(6.4.0)
+8.System.Data.SqlClient(4.8.6)
+9.System.IdentityModel.Tokens.Jwt(8.0.0)
+10.UmbracoCms.Core(8.18.14)
+
+# //AppSetting.json (file)
+
+{
+  "ConnectionStrings": {
+    "dbcs": "Server=192.168.1.51;Database=VMSAPIDB;User ID=root;Password=Ajeevi@#321890;Port=8012;"
+  },
+  "Jwt": {
+    "Key": "AjeeviTechnologyPvtLtd6201941071",
+    "Issuer": "VMS_Project_API",
+    "Audience": "VMS_Project_API_Users",
+    "ExpireDays": "30"
+  },
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+  "AllowedHosts": "*"
+}
+
+
+#   //Program.cs (file)
+
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
+using System.Text;
+using VMS_Project_API.AppCode;
+using VMS_Project_API.Data;
+using VMS_Project_API.Entities;
+using VMS_Project_API.Model;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// Connection string
+var connectionString = builder.Configuration.GetConnectionString("dbcs");
+
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    options.UseMySql(connectionString, new MySqlServerVersion(new Version(8, 0, 0)), mySqlOptions =>
+    {
+        mySqlOptions.EnableRetryOnFailure(
+            maxRetryCount: 5,
+            maxRetryDelay: TimeSpan.FromSeconds(10),
+            errorNumbersToAdd: null);
+    }));
+
+// Identity service
+builder.Services.AddIdentity<ApplicationUser, IdentityRole>()
+    .AddEntityFrameworkStores<ApplicationDbContext>()
+    .AddDefaultTokenProviders();
+
+// Add controllers
+builder.Services.AddControllers();
+
+// Add Authorization
+builder.Services.AddAuthorization();
+
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc("V1", new OpenApiInfo
+    {
+        Version = "V1",
+        Title = "WebAPI",
+        Description = "VMSAPI"
+    });
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Scheme = "Bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Name = "Authorization",
+        Description = "Bearer Authentication with JWT Token",
+        Type = SecuritySchemeType.Http
+    });
+    options.AddSecurityRequirement(new OpenApiSecurityRequirement {
+        {
+            new OpenApiSecurityScheme {
+                Reference = new OpenApiReference {
+                    Id = "Bearer",
+                        Type = ReferenceType.SecurityScheme
+                }
+            },
+            new List < string > ()
+        }
+    });
+});
+
+
+builder.Services.AddAuthentication(opt =>
+{
+    opt.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    opt.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+}).AddJwtBearer(options =>
+{
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = GlobalModel.JWTValidIssuer,
+        ValidAudience = GlobalModel.JWTValidAudience,
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(GlobalModel.JWTSecret))
+    };
+});
+
+var app = builder.Build();
+
+// Configure Swagger middleware
+
+app.UseSwagger();
+app.UseSwaggerUI(options =>
+{
+    options.SwaggerEndpoint("/swagger/V1/swagger.json", "VMSAPI");
+});
+
+
+app.UseHttpsRedirection();
+
+app.UseRouting();
+
+app.UseAuthentication();
+app.UseAuthorization();
+
+app.MapControllers();
+app.UseCors(x => x.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
+app.Run();
+
+
+#// Create Entities / Class
+1.Camera.cs
+2.CameraActivity.cs
+3.CameraRecord.cs
+4.CameraStatus.cs
+5.CameraTrackingData.cs
+6.Group.cs
+7.License.cs
+8.LicenseActivation.cs
+9.LoginModel.cs
+10.MultCameraDTO.cs
+11.NVR.cs
+12.Role.cs
+13.TokenValidationModel.cs
+14.User.cs
+15.UserCameraPermission.cs
+
+
+//1.Camera.cs
+=>using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using Umbraco.Core.Models.PublishedContent;
+
+namespace VMS_Project_API.Entities
+{
+    public class Camera
+    {
+        public int Id { get; set; }
+        public string Name { get; set; }
+        public string CameraIP { get; set; }
+        public string Location { get; set; }
+        public NVR NVR { get; set; }
+        public int NVRId { get; set; }
+        public Group Group { get; set; }
+        public int GroupId { get; set; }
+        public int Port { get; set; }
+        public int ChannelId { get; set; }
+        public string CameraType { get; set; }
+        public decimal Latitude { get; set; }
+        public decimal Longitude { get; set; }
+        public decimal LastLive { get; set; }
+        public string RTSPURL { get; set; }
+        public Boolean Status { get; set; }
+        public DateTime UpdateDate { get; set; }
+        public DateTime RegDate { get; set; }
+    }
+}
+ 
+
+//2.CameraActivity.cs
+=>using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace VMS_Project_API.Entities
+{
+    public class CameraActivity
+    {
+        public int Id { get; set; }
+        public Camera Camera { get; set; }
+        public int CID { get; set; }
+        public User User { get; set; }
+        public int UID { get; set; }
+        public string Activity { get; set; }
+        public Boolean Status { get; set; }
+        public DateTime RegDate { get; set; }
+    }
+}
+
+
+//3.CameraRecord.cs
+=>using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace VMS_Project_API.Entities
+{
+    public class CameraRecord
+    {
+        public int Id { get; set; }
+        public Camera Camera { get; set; }
+        public int CID { get; set; }
+        public string RecordPath { get; set; }
+        public Boolean Status { get; set; }
+        public DateTime RegDate { get; set; }
+    }
+}
+
+//4.CameraStatus.cs
+=>using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace VMS_Project_API.Entities
+{
+    public class CameraStatus
+    {
+        public int Id { get; set; }
+        public Camera Camera { get; set; }
+        public int CID { get; set; }
+        public Boolean IsRecording { get; set; }
+        public Boolean IsTracking { get; set; }
+        public DateTime UpdateDate { get; set; }
+        public DateTime RegDate { get; set; }
+    }
+}
+
+//5.CameraTrackingData.cs
+=>using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace VMS_Project_API.Entities
+{
+    public class CameraTrackingData
+    {
+        public int Id { get; set; }
+        public Camera Camera { get; set; }
+        public int CID { get; set; }
+        public string VichelImage { get; set; }
+        public string NoPlateImage { get; set; }
+        public string VichelNo { get; set; }
+        public Boolean Status { get; set; }
+        public DateTime RegDate { get; set; }
+    }
+}
+
+//6.Group.cs
+=>using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace VMS_Project_API.Entities
+{
+    public class Group
+    {
+        public int Id { get; set; }
+        public string Name { get; set; }
+        public string Description { get; set; }
+        public Boolean Status { get; set; }
+        public DateTime RegDate { get; set; }
+    }
+}
+
+//7.License.cs
+=>using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace VMS_Project_API.Entities
+{
+    public class License
+    {
+        public int Id { get; set; }
+        public string Name { get; set; }
+        public string LicenseKey { get; set; }
+        public string ProductCode { get; set; }
+        public int Days { get; set; }
+        public int TotalPC { get; set; }
+        public int TotalCamera { get; set; }
+        public string Description { get; set; }
+        public Boolean Status { get; set; }
+        public DateTime RegDate { get; set; }
+    }
+}
+
+//8.LicenseActivation.cs
+=>using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace VMS_Project_API.Entities
+{
+    public class LicenseActivation
+    {
+        public int Id { get; set; }
+        public User User { get; set; }
+        public int UID { get; set; }
+        public License License { get; set; }
+        public int LId { get; set; }
+        public string MachineIP { get; set; }
+        public DateTime ExpiryDate { get; set; }
+        public Boolean Status { get; set; }
+        public DateTime RegDate { get; set; }
+    }
+}
+
+//9.LoginModel.cs
+=>using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace VMS_Project_API.Entities
+{
+    public class LoginModel
+    {
+        public string EmailId { get; set; }
+        public string Password { get; set; }
+    }
+}
+
+//10.MultCameraDTO.cs
+=>using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace VMS_Project_API.Entities
+{
+    public class MultCameraDTO
+    {
+        public int Id { get; set; }
+
+        public string Name { get; set; }
+        public List<string> RTSPURL { get; set; }
+    }
+}
+
+//11.NVR.cs
+=>using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace VMS_Project_API.Entities
+{
+    public class NVR
+    {
+        public int Id { get; set; }
+        public string NVRIP { get; set; }
+        public int Port { get; set; }
+        public string Username { get; set; }
+        public string Password { get; set; }
+        public Boolean Status { get; set; }
+        public DateTime RegDate { get; set; }
+    }
+}
+
+//12.Role.cs
+=>using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace VMS_Project_API.Entities
+{
+    public class Role
+    {
+        public int Id { get; set; }
+        public string Name { get; set; }
+        public Boolean Status { get; set; }
+        public DateTime RegDate { get; set; }
+    }
+}
+
+//13.TokenValidationModel.cs
+=>using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace VMS_Project_API.Entities
+{
+    public class TokenValidationModel
+    {
+        public string Token { get; set; }
+     
+    }
+}
+
+//14.User.cs
+=>using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace VMS_Project_API.Entities
+{
+    public class User
+    {
+        public int Id { get; set; }
+        public string FirstName { get; set; }
+        public string LastName { get; set; }
+        public string MobileNo { get; set; }
+        public string EmailId { get; set; }
+        public string Password { get; set; }
+        public Role Role { get; set; }
+        public int RoleId { get; set; }
+        public Boolean Status { get; set; }
+        public DateTime RegDate { get; set; }
+    }
+}
+
+//15.UserCameraPermission.cs
+=>using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace VMS_Project_API.Entities
+{
+    public class User_Camera_Permission
+    {
+        public int Id { get; set; }
+        public User User { get; set; }
+        public int UserId { get; set; }
+        public Camera Camera { get; set; }
+        public int CameraId { get; set; }
+        public Boolean Snapshot { get; set; }
+        public Boolean Record { get; set; }
+        public Boolean Track { get; set; }
+        public Boolean Status { get; set; }
+        public DateTime RegDate { get; set; }
+    }
+}
+
+#// Identity Class Create
+=>Model/ApplicationUser.cs
+
+using Microsoft.AspNetCore.Identity;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace VMS_Project_API.Model
+{
+    public class ApplicationUser:IdentityUser
+    {
+        public bool Status {  get; set; }
+    }
+}
+
+#// Tokens Login in Global/ Class
+=>AppCode/GlobalModel.cs
+
+namespace VMS_Project_API.AppCode
+{
+    public class GlobalModel
+    {
+        public static string JWTSecret { get; set; } = "1234567890123456789123456789012345678912345678901234567890";
+        public static string JWTValidIssuer { get; set; } = "admin";
+        public static string JWTValidAudience { get; set; } = "admin";
+    }
+}
+
+#// Database Connectivity (Any Database)
+=>Data/ApplicationDbContext.cs
+
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
+using VMS_Project_API.Entities;
+using VMS_Project_API.Model;
+
+namespace VMS_Project_API.Data
+{
+    public class ApplicationDbContext:IdentityDbContext<ApplicationUser>
+    {
+        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options):base(options)
+        {
+            
+        }
+        public DbSet<Role> Roles { get; set; }
+        public DbSet<User> Users { get; set; }
+        public DbSet<Group> Groups { get; set; }
+        public DbSet<Camera> Cameras { get; set; }
+        public DbSet<User_Camera_Permission> user_Camera_Permissions { get; set; }
+        public DbSet<License> Licenses { get; set; }
+        public DbSet<LicenseActivation> LicenseActivations { get; set; }
+        public DbSet<CameraActivity> CameraActivities { get; set; }
+        public DbSet<CameraTrackingData> CameraTrackingDatas { get; set; }
+        public DbSet<CameraRecord> CameraRecords { get; set; }
+        public DbSet<MultCameraDTO> multCameras { get; set; }
+        public DbSet<CameraStatus> CameraStatuss { get; set; }
+        public DbSet<NVR> NVR { get; set; } 
+    }
+}
+
+#// Use Migration
+->Add-Migration 'Initial'
+->Update-Database
+
+#// Controllers
+1.AuthController.cs
+2.CameraActivityController.cs
+3.CameraController.cs
+4.CameraRecordController.cs
+5.CameraStatusController.cs
+6.CameraTrackingDataController.cs
+7.GroupController.cs
+8.LicenseActivationController.cs
+9.LicenseController.cs
+10.NVRController.cs
+11.RoleController.cs
+12.UserCameraPermissionController.cs
+13.UserController.cs
+
+//1.AuthController.cs                                                                    Login&Logout  +  Tokens generate
+=>using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Identity;
+using System.Security.Claims;
+using System.IdentityModel.Tokens.Jwt;
+using System.Text;
+using Microsoft.IdentityModel.Tokens;
+using VMS_Project_API.Entities;
+using Microsoft.EntityFrameworkCore;
+using VMS_Project_API.Data;
+using VMS_Project_API.Model;
+using Umbraco.Core.Services.Implement;
+using VMS_Project_API.AppCode;
+
+namespace VMS_Project_API.Controllers
+{
+    [Route("api/[controller]")]
+    [ApiController]
+    public class AuthController : ControllerBase
+    {
+        private readonly UserManager<ApplicationUser> _userManager;
+        private readonly IConfiguration _configuration;
+        private readonly ApplicationDbContext _context;
+
+        public AuthController(UserManager<ApplicationUser> userManager, IConfiguration configuration, ApplicationDbContext context)
+        {
+            _userManager = userManager;
+            _configuration = configuration;
+            _context = context;
+        }
+
+
+        [HttpPost("login")]
+        public IActionResult Login([FromBody] Login user)
+        {
+            if (user is null)
+            {
+                return BadRequest("Invalid user request!!!");
+            }
+
+
+           var rData = _context.Users.FirstOrDefault(u => u.EmailId == user.UserName);
+
+            if (rData != null)
+            {
+                if (user.UserName == rData.EmailId && user.Password == rData.Password)
+                {
+                    var secretKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(GlobalModel.JWTSecret));
+                    var signinCredentials = new SigningCredentials(secretKey, SecurityAlgorithms.HmacSha256);
+                    var tokeOptions = new JwtSecurityToken(issuer: GlobalModel.JWTValidIssuer, audience: GlobalModel.JWTValidAudience, claims: new List<Claim>(), expires: DateTime.Now.AddDays(1), signingCredentials: signinCredentials);
+                    var tokenString = new JwtSecurityTokenHandler().WriteToken(tokeOptions);
+                    return Ok(new JWTTokenResponse
+                    {
+                        Token = tokenString
+                    });
+                }
+            }
+            else
+            {
+                return BadRequest("User data is null.");
+            }
+            return Unauthorized();
+        }
+    }
+
+    public class Login
+    {
+        public string? UserName
+        {
+            get;
+            set;
+        }
+        public string? Password
+        {
+            get;
+            set;
+        }
+    }
+
+    public class JWTTokenResponse
+    {
+        public string? Token
+        {
+            get;
+            set;
+        }
+    }
+}
+
+
+
+//2.CameraActivityController.cs
+=>using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using VMS_Project_API.Data;
+using VMS_Project_API.Entities;
+
+namespace VMS_Project_API.Controllers
+{
+    [Route("api/[controller]")]
+    [ApiController]
+    [Authorize]
+    public class CameraActivityController : ControllerBase
+    {
+        private readonly ApplicationDbContext _context;
+
+        public CameraActivityController(ApplicationDbContext context)
+        {
+            _context = context;
+        }
+
+        [HttpGet("GetAll")]
+        public async Task<IActionResult> GetAll()
+        {
+            try
+            {
+                var ucp = await _context.CameraActivities.ToListAsync();
+                return Ok(ucp);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex.Message}");
+            }
+        }
+
+        [HttpGet("Pagination")]
+        public async Task<IActionResult> Index(int pageNumber = 1, int pageSize = 10)
+        {
+            try
+            {
+                var query = _context.CameraActivities.AsQueryable();
+
+                var pagedCameraActivities = await query
+                    .Skip((pageNumber - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToListAsync();
+
+                var totalCount = await query.CountAsync();
+
+                var result = new
+                {
+                    TotalCount = totalCount,
+                    PageNumber = pageNumber,
+                    PageSize = pageSize,
+                    CameraActivities = pagedCameraActivities
+                };
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex.Message}");
+            }
+        }
+
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetById(int id)
+        {
+            try
+            {
+                var cas = await _context.CameraActivities.FirstOrDefaultAsync(u => u.Id == id);
+                if (cas == null)
+                {
+                    return NotFound();
+                }
+                return Ok(cas);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex.Message}");
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> Create(CameraActivity cameraActivity)
+        {
+            try
+            {
+                await _context.CameraActivities.AddAsync(cameraActivity);
+                await _context.SaveChangesAsync();
+                return Ok(cameraActivity);
+            }
+            catch (DbUpdateException ex)
+            {
+                return StatusCode(500, $"An error occurred while saving changes: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex.Message}");
+            }
+        }
+
+        private bool CActivityExists(int id)
+        {
+            try
+            {
+                return _context.CameraActivities.Any(e => e.Id == id);
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"An error occurred while checking camera activity existence: {ex.Message}");
+            }
+        }
+
+        [HttpPut]
+        public async Task<IActionResult> UpdateRole([FromBody] CameraActivity cameraActivity)
+        {
+            try
+            {
+                if (cameraActivity.Id < 1)
+                {
+                    return BadRequest();
+                }
+
+                _context.CameraActivities.Update(cameraActivity);
+
+                await _context.SaveChangesAsync();
+                return NoContent();
+            }
+            catch (DbUpdateConcurrencyException ex)
+            {
+                if (!CActivityExists(cameraActivity.Id))
+                {
+                    return NotFound();
+                }
+                else
+                {
+                    throw new Exception($"An error occurred while updating camera activity: {ex.Message}");
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex.Message}");
+            }
+        }
+
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteCActivity(int id)
+        {
+            try
+            {
+                var cas = await _context.CameraActivities.FindAsync(id);
+                if (cas == null)
+                {
+                    return NotFound();
+                }
+
+                _context.CameraActivities.Remove(cas);
+                await _context.SaveChangesAsync();
+
+                return NoContent();
+            }
+            catch (DbUpdateException ex)
+            {
+                return StatusCode(500, $"An error occurred while deleting camera activity: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex.Message}");
+            }
+        }
+    }
+}
+
+//3.CameraController.cs
+=>using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using VMS_Project_API.Data;
+using VMS_Project_API.Entities;
+
+namespace VMS_Project_API.Controllers
+{
+    [Route("api/[controller]")]
+    [ApiController]
+    [Authorize]
+    public class CameraController : ControllerBase
+    {
+        private readonly ApplicationDbContext _context;
+
+        public CameraController(ApplicationDbContext context)
+        {
+            _context = context;
+        }
+
+        [HttpGet("GetAll")]
+        public async Task<IActionResult> GetAll()
+        {
+            try
+            {
+                var ucp = await _context.Cameras.ToListAsync();
+                return Ok(ucp);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex.Message}");
+            }
+        }
+
+        [HttpGet("Pagination")]
+        public async Task<IActionResult> Index(int pageNumber = 1, int pageSize = 10)
+        {
+            try
+            {
+                var query = _context.Cameras.AsQueryable();
+
+                var pagedCameras = await query
+                    .Skip((pageNumber - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToListAsync();
+
+                var totalCount = await query.CountAsync();
+
+                var result = new
+                {
+                    TotalCount = totalCount,
+                    PageNumber = pageNumber,
+                    PageSize = pageSize,
+                    Cameras = pagedCameras
+                };
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex.Message}");
+            }
+        }
+
+        [HttpGet("CMR")]
+        public async Task<IActionResult> GetByCMR()
+        {
+            try
+            {
+                var cameras = await _context.Cameras
+             .Where(c => c.Status)
+             .Select(c => new MultCameraDTO
+             {
+                 Id = c.Id,
+                 Name = c.Name,
+                 RTSPURL = c.RTSPURL != null ? c.RTSPURL.Split().ToList() : new List<string>()
+             })
+             .ToListAsync();
+
+                return Ok(cameras);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex.Message}");
+            }
+        }
+
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetById(int id)
+        {
+            try
+            {
+                var cmr = await _context.Cameras.FirstOrDefaultAsync(u => u.Id == id);
+                if (cmr == null)
+                {
+                    return NotFound();
+                }
+                return Ok(cmr);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex.Message}");
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> Create(Camera cmr)
+        {
+            try
+            {
+                await _context.Cameras.AddAsync(cmr);
+                await _context.SaveChangesAsync();
+                return Ok(cmr);
+            }
+            catch (DbUpdateException ex)
+            {
+                return StatusCode(500, $"An error occurred while saving changes: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex.Message}");
+            }
+        }
+
+        private bool cameraExist(int id)
+        {
+            try
+            {
+                return _context.Cameras.Any(e => e.Id == id);
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"An error occurred while checking camera existence: {ex.Message}");
+            }
+        }
+
+        [HttpPut]
+        public async Task<IActionResult> UpdateCamera([FromBody] Camera cmr)
+        {
+            try
+            {
+                if (cmr.Id < 1)
+                {
+                    return BadRequest();
+                }
+
+                _context.Cameras.Update(cmr);
+                await _context.SaveChangesAsync();
+                return NoContent();
+            }
+            catch (DbUpdateConcurrencyException ex)
+            {
+                if (!cameraExist(cmr.Id))
+                {
+                    return NotFound();
+                }
+                else
+                {
+                    throw new Exception($"An error occurred while updating camera: {ex.Message}");
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex.Message}");
+            }
+        }
+
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteCamera(int id)
+        {
+            try
+            {
+                var cma = await _context.Cameras.FirstOrDefaultAsync(x => x.Id == id);
+                if (cma == null)
+                {
+                    return NotFound();
+                }
+                _context.Cameras.Remove(cma);
+                await _context.SaveChangesAsync();
+                return NoContent();
+            }
+            catch (DbUpdateException ex)
+            {
+                return StatusCode(500, $"An error occurred while deleting camera: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex.Message}");
+            }
+        }
+    }
+}
+
+//4.CameraRecordController.cs
+=>using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using VMS_Project_API.Data;
+using VMS_Project_API.Entities;
+
+namespace VMS_Project_API.Controllers
+{
+    [Route("api/[controller]")]
+    [ApiController]
+    [Authorize]
+    public class CameraRecordController : ControllerBase
+    {
+        private readonly ApplicationDbContext _context;
+
+        public CameraRecordController(ApplicationDbContext context)
+        {
+            _context = context;
+        }
+
+        [HttpGet("GetAll")]
+        public async Task<IActionResult> GetAll()
+        {
+            try
+            {
+                var ucp = await _context.CameraRecords.ToListAsync();
+                return Ok(ucp);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex.Message}");
+            }
+        }
+
+        [HttpGet("Pagination")]
+        public async Task<IActionResult> Index(int pageNumber = 1, int pageSize = 10)
+        {
+            try
+            {
+                var query = _context.CameraRecords.AsQueryable();
+
+                var pagedRecords = await query
+                    .Skip((pageNumber - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToListAsync();
+
+                var totalCount = await query.CountAsync();
+
+                var result = new
+                {
+                    TotalCount = totalCount,
+                    PageNumber = pageNumber,
+                    PageSize = pageSize,
+                    CameraRecords = pagedRecords
+                };
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex.Message}");
+            }
+        }
+
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetById(int id)
+        {
+            try
+            {
+                var crd = await _context.CameraRecords.FirstOrDefaultAsync(u => u.Id == id);
+                if (crd == null)
+                {
+                    return NotFound();
+                }
+                return Ok(crd);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex.Message}");
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> Create(CameraRecord cameraRecord)
+        {
+            try
+            {
+                await _context.CameraRecords.AddAsync(cameraRecord);
+                await _context.SaveChangesAsync();
+                return Ok(cameraRecord);
+            }
+            catch (DbUpdateException ex)
+            {
+                return StatusCode(500, $"An error occurred while saving changes: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex.Message}");
+            }
+        }
+
+        private bool CRecordExists(int id)
+        {
+            try
+            {
+                return _context.CameraRecords.Any(e => e.Id == id);
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"An error occurred while checking camera record existence: {ex.Message}");
+            }
+        }
+
+        [HttpPut]
+        public async Task<IActionResult> UpdateCRecord([FromBody] CameraRecord cameraRecord)
+        {
+            try
+            {
+                if (cameraRecord.Id < 1)
+                {
+                    return BadRequest();
+                }
+
+                _context.CameraRecords.Update(cameraRecord);
+                await _context.SaveChangesAsync();
+                return NoContent();
+            }
+            catch (DbUpdateConcurrencyException ex)
+            {
+                if (!CRecordExists(cameraRecord.Id))
+                {
+                    return NotFound();
+                }
+                else
+                {
+                    throw new Exception($"An error occurred while updating camera record: {ex.Message}");
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex.Message}");
+            }
+        }
+
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteCRecord(int id)
+        {
+            try
+            {
+                var crd = await _context.CameraRecords.FindAsync(id);
+                if (crd == null)
+                {
+                    return NotFound();
+                }
+
+                _context.CameraRecords.Remove(crd);
+                await _context.SaveChangesAsync();
+
+                return NoContent();
+            }
+            catch (DbUpdateException ex)
+            {
+                return StatusCode(500, $"An error occurred while deleting camera record: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex.Message}");
+            }
+        }
+    }
+}
+
+//5.CameraStatusController.cs
+=>using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using VMS_Project_API.Data;
+using VMS_Project_API.Entities;
+
+namespace VMS_Project_API.Controllers
+{
+    [Route("api/[controller]")]
+    [ApiController]
+    [Authorize]
+    public class CameraStatusController : ControllerBase
+    {
+        private readonly ApplicationDbContext _context;
+
+        public CameraStatusController(ApplicationDbContext context)
+        {
+            _context = context;
+        }
+
+        [HttpGet("GetAll")]
+        public async Task<IActionResult> GetAll()
+        {
+            try
+            {
+                var ucp = await _context.CameraStatuss.ToListAsync();
+                return Ok(ucp);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex.Message}");
+            }
+        }
+
+        [HttpGet("Pagination")]
+        public async Task<IActionResult> Index(int pageNumber = 1, int pageSize = 10)
+        {
+            try
+            {
+                var query = _context.CameraStatuss.AsQueryable();
+
+                var pagedRoles = await query
+                    .Skip((pageNumber - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToListAsync();
+
+                var totalCount = await query.CountAsync();
+
+                var result = new
+                {
+                    TotalCount = totalCount,
+                    PageNumber = pageNumber,
+                    PageSize = pageSize,
+                    Roles = pagedRoles
+                };
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex.Message}");
+            }
+        }
+
+        [HttpGet("Id")]
+        public async Task<IActionResult> GetById(int id)
+        {
+            try
+            {
+                var cmrs = await _context.CameraStatuss.FirstOrDefaultAsync(u => u.Id == id);
+                if (cmrs == null)
+                {
+                    return NotFound();
+                }
+                return Ok(cmrs);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex.Message}");
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> Create(CameraStatus cameraStatus)
+        {
+            try
+            {
+                await _context.CameraStatuss.AddAsync(cameraStatus);
+                await _context.SaveChangesAsync();
+                return Ok(cameraStatus);
+            }
+            catch (DbUpdateException ex)
+            {
+                return StatusCode(500, $"An error occurred while saving changes: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex.Message}");
+            }
+        }
+
+        private bool CMRSExists(int id)
+        {
+            try
+            {
+                return _context.CameraStatuss.Any(e => e.Id == id);
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"An error occurred while checking role existence: {ex.Message}");
+            }
+        }
+
+        [HttpPut]
+        public async Task<IActionResult> UpdateCMRS([FromBody] CameraStatus cameraStatus)
+        {
+            try
+            {
+                if (cameraStatus.Id < 1)
+                {
+                    return BadRequest();
+                }
+
+                _context.CameraStatuss.Update(cameraStatus);
+
+                await _context.SaveChangesAsync();
+                return NoContent();
+            }
+            catch (DbUpdateConcurrencyException ex)
+            {
+                if (!CMRSExists(cameraStatus.Id))
+                {
+                    return NotFound();
+                }
+                else
+                {
+                    throw new Exception($"An error occurred while updating role: {ex.Message}");
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex.Message}");
+            }
+        }
+
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteCMRS(int id)
+        {
+            try
+            {
+                var cmrs = await _context.CameraStatuss.FindAsync(id);
+                if (cmrs == null)
+                {
+                    return NotFound();
+                }
+
+                _context.CameraStatuss.Remove(cmrs);
+                await _context.SaveChangesAsync();
+
+                return NoContent();
+            }
+            catch (DbUpdateException ex)
+            {
+                return StatusCode(500, $"An error occurred while deleting role: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex.Message}");
+            }
+        }
+    }
+}
+
+//6.CameraTrackingDataController.cs
+=>using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using VMS_Project_API.Data;
+using VMS_Project_API.Entities;
+
+namespace VMS_Project_API.Controllers
+{
+    [Route("api/[controller]")]
+    [ApiController]
+    [Authorize]
+    public class CameraTrackingDataController : ControllerBase
+    {
+        private readonly ApplicationDbContext _context;
+
+        public CameraTrackingDataController(ApplicationDbContext context)
+        {
+            _context = context;
+        }
+
+        [HttpGet("GetAll")]
+        public async Task<IActionResult> GetAll()
+        {
+            try
+            {
+                var ucp = await _context.CameraTrackingDatas.ToListAsync();
+                return Ok(ucp);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex.Message}");
+            }
+        }
+
+        [HttpGet("Pagination")]
+        public async Task<IActionResult> Index(int pageNumber = 1, int pageSize = 10)
+        {
+            try
+            {
+                var query = _context.CameraTrackingDatas.AsQueryable();
+
+                var pagedData = await query
+                    .Skip((pageNumber - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToListAsync();
+
+                var totalCount = await query.CountAsync();
+
+                var result = new
+                {
+                    TotalCount = totalCount,
+                    PageNumber = pageNumber,
+                    PageSize = pageSize,
+                    CameraTrackingData = pagedData
+                };
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex.Message}");
+            }
+        }
+
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetById(int id)
+        {
+            try
+            {
+                var ctd = await _context.CameraTrackingDatas.FirstOrDefaultAsync(u => u.Id == id);
+                if (ctd == null)
+                {
+                    return NotFound();
+                }
+                return Ok(ctd);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex.Message}");
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> Create(CameraTrackingData cameraTrackingData)
+        {
+            try
+            {
+                await _context.CameraTrackingDatas.AddAsync(cameraTrackingData);
+                await _context.SaveChangesAsync();
+                return Ok(cameraTrackingData);
+            }
+            catch (DbUpdateException ex)
+            {
+                return StatusCode(500, $"An error occurred while saving changes: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex.Message}");
+            }
+        }
+
+        private bool CTDExists(int id)
+        {
+            try
+            {
+                return _context.CameraTrackingDatas.Any(e => e.Id == id);
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"An error occurred while checking camera tracking data existence: {ex.Message}");
+            }
+        }
+
+        [HttpPut]
+        public async Task<IActionResult> UpdateCTD([FromBody] CameraTrackingData cameraTrackingData)
+        {
+            try
+            {
+                if (cameraTrackingData.Id < 1)
+                {
+                    return BadRequest();
+                }
+
+                _context.CameraTrackingDatas.Update(cameraTrackingData);
+
+                await _context.SaveChangesAsync();
+                return NoContent();
+            }
+            catch (DbUpdateConcurrencyException ex)
+            {
+                if (!CTDExists(cameraTrackingData.Id))
+                {
+                    return NotFound();
+                }
+                else
+                {
+                    throw new Exception($"An error occurred while updating camera tracking data: {ex.Message}");
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex.Message}");
+            }
+        }
+
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteCTD(int id)
+        {
+            try
+            {
+                var ctd = await _context.CameraTrackingDatas.FindAsync(id);
+                if (ctd == null)
+                {
+                    return NotFound();
+                }
+
+                _context.CameraTrackingDatas.Remove(ctd);
+                await _context.SaveChangesAsync();
+
+                return NoContent();
+            }
+            catch (DbUpdateException ex)
+            {
+                return StatusCode(500, $"An error occurred while deleting camera tracking data: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex.Message}");
+            }
+        }
+    }
+}
+
+//7.GroupController.cs
+=>using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using VMS_Project_API.Data;
+using VMS_Project_API.Entities;
+
+namespace VMS_Project_API.Controllers
+{
+    [Route("api/[controller]")]
+    [ApiController]
+    [Authorize]
+    public class GroupController : ControllerBase
+    {
+        private readonly ApplicationDbContext _context;
+
+        public GroupController(ApplicationDbContext context)
+        {
+            _context = context;
+        }
+
+        [HttpGet("GetAll")]
+        public async Task<IActionResult> GetAll()
+        {
+            try
+            {
+                var ucp = await _context.Groups.ToListAsync();
+                return Ok(ucp);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex.Message}");
+            }
+        }
+
+        [HttpGet("Pagination")]
+        public async Task<IActionResult> Index(int pageNumber = 1, int pageSize = 10)
+        {
+            try
+            {
+                var query = _context.Groups.AsQueryable();
+
+                var pagedGroups = await query
+                    .Skip((pageNumber - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToListAsync();
+
+                var totalCount = await query.CountAsync();
+
+                var result = new
+                {
+                    TotalCount = totalCount,
+                    PageNumber = pageNumber,
+                    PageSize = pageSize,
+                    Groups = pagedGroups
+                };
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex.Message}");
+            }
+        }
+
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetById(int id)
+        {
+            try
+            {
+                var grp = await _context.Groups.FirstOrDefaultAsync(u => u.Id == id);
+                if (grp == null)
+                {
+                    return NotFound();
+                }
+                return Ok(grp);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex.Message}");
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> Create(Group group)
+        {
+            try
+            {
+                await _context.Groups.AddAsync(group);
+                await _context.SaveChangesAsync();
+                return Ok(group);
+            }
+            catch (DbUpdateException ex)
+            {
+                return StatusCode(500, $"An error occurred while saving changes: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex.Message}");
+            }
+        }
+
+        private bool groupExist(int id)
+        {
+            try
+            {
+                return _context.Groups.Any(e => e.Id == id);
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"An error occurred while checking group existence: {ex.Message}");
+            }
+        }
+
+        [HttpPut]
+        public async Task<IActionResult> UpdateGroup([FromBody] Group group)
+        {
+            try
+            {
+                if (group.Id < 1)
+                {
+                    return BadRequest();
+                }
+
+                _context.Groups.Update(group);
+
+                await _context.SaveChangesAsync();
+                return NoContent();
+            }
+            catch (DbUpdateConcurrencyException ex)
+            {
+                if (!groupExist(group.Id))
+                {
+                    return NotFound();
+                }
+                else
+                {
+                    throw new Exception($"An error occurred while updating group: {ex.Message}");
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex.Message}");
+            }
+        }
+
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> Delete(int id)
+        {
+            try
+            {
+                var grp = await _context.Groups.FirstOrDefaultAsync(x => x.Id == id);
+                if (grp == null)
+                {
+                    return NotFound();
+                }
+
+                _context.Groups.Remove(grp);
+                await _context.SaveChangesAsync();
+                return NoContent();
+            }
+            catch (DbUpdateException ex)
+            {
+                return StatusCode(500, $"An error occurred while deleting group: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex.Message}");
+            }
+        }
+    }
+}
+
+//8.LicenseActivationController.cs
+=>using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using VMS_Project_API.Data;
+using VMS_Project_API.Entities;
+
+namespace VMS_Project_API.Controllers
+{
+    [Route("api/[controller]")]
+    [ApiController]
+    [Authorize]
+    public class LicenseActivationController : ControllerBase
+    {
+        private readonly ApplicationDbContext _context;
+
+        public LicenseActivationController(ApplicationDbContext context)
+        {
+            _context = context;
+        }
+
+        [HttpGet("GetAll")]
+        public async Task<IActionResult> GetAll()
+        {
+            try
+            {
+                var ucp = await _context.LicenseActivations.ToListAsync();
+                return Ok(ucp);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex.Message}");
+            }
+        }
+
+        [HttpGet("Pagination")]
+        public async Task<IActionResult> Index(int pageNumber = 1, int pageSize = 10)
+        {
+            try
+            {
+                var query = _context.LicenseActivations.AsQueryable();
+
+                var pagedLicenses = await query
+                    .Skip((pageNumber - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToListAsync();
+
+                var totalCount = await query.CountAsync();
+
+                var result = new
+                {
+                    TotalCount = totalCount,
+                    PageNumber = pageNumber,
+                    PageSize = pageSize,
+                    LicenseActivations = pagedLicenses
+                };
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex.Message}");
+            }
+        }
+
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetById(int id)
+        {
+            try
+            {
+                var las = await _context.LicenseActivations.FirstOrDefaultAsync(u => u.Id == id);
+                if (las == null)
+                {
+                    return NotFound();
+                }
+                return Ok(las);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex.Message}");
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> Create(LicenseActivation licenseActivation)
+        {
+            try
+            {
+                await _context.LicenseActivations.AddAsync(licenseActivation);
+                await _context.SaveChangesAsync();
+                return Ok(licenseActivation);
+            }
+            catch (DbUpdateException ex)
+            {
+                return StatusCode(500, $"An error occurred while saving changes: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex.Message}");
+            }
+        }
+
+        private bool LActivationExists(int id)
+        {
+            try
+            {
+                return _context.LicenseActivations.Any(e => e.Id == id);
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"An error occurred while checking license activation existence: {ex.Message}");
+            }
+        }
+
+        [HttpPut]
+        public async Task<IActionResult> UpdateLActivation([FromBody] LicenseActivation licenseActivation)
+        {
+            try
+            {
+                if (licenseActivation.Id < 1)
+                {
+                    return BadRequest();
+                }
+
+                _context.LicenseActivations.Update(licenseActivation);
+
+                await _context.SaveChangesAsync();
+                return NoContent();
+            }
+            catch (DbUpdateConcurrencyException ex)
+            {
+                if (!LActivationExists(licenseActivation.Id))
+                {
+                    return NotFound();
+                }
+                else
+                {
+                    throw new Exception($"An error occurred while updating license activation: {ex.Message}");
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex.Message}");
+            }
+        }
+
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteLActivation(int id)
+        {
+            try
+            {
+                var lasv = await _context.LicenseActivations.FindAsync(id);
+                if (lasv == null)
+                {
+                    return NotFound();
+                }
+
+                _context.LicenseActivations.Remove(lasv);
+                await _context.SaveChangesAsync();
+
+                return NoContent();
+            }
+            catch (DbUpdateException ex)
+            {
+                return StatusCode(500, $"An error occurred while deleting license activation: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex.Message}");
+            }
+        }
+    }
+}
+
+//9.LicenseController.cs
+=>using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using VMS_Project_API.Data;
+using VMS_Project_API.Entities;
+
+namespace VMS_Project_API.Controllers
+{
+    [Route("api/[controller]")]
+    [ApiController]
+    [Authorize]
+    public class LicenseController : ControllerBase
+    {
+        private readonly ApplicationDbContext _context;
+
+        public LicenseController(ApplicationDbContext context)
+        {
+            _context = context;
+        }
+
+        [HttpGet("GetAll")]
+        public async Task<IActionResult> GetAll()
+        {
+            try
+            {
+                var ucp = await _context.Licenses.ToListAsync();
+                return Ok(ucp);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex.Message}");
+            }
+        }
+
+        [HttpGet("Pagination")]
+        public async Task<IActionResult> Index(int pageNumber = 1, int pageSize = 10)
+        {
+            try
+            {
+                var query = _context.Licenses.AsQueryable();
+
+                var pagedLicenses = await query
+                    .Skip((pageNumber - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToListAsync();
+
+                var totalCount = await query.CountAsync();
+
+                var result = new
+                {
+                    TotalCount = totalCount,
+                    PageNumber = pageNumber,
+                    PageSize = pageSize,
+                    Licenses = pagedLicenses
+                };
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex.Message}");
+            }
+        }
+
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetById(int id)
+        {
+            try
+            {
+                var license = await _context.Licenses.FirstOrDefaultAsync(u => u.Id == id);
+                if (license == null)
+                {
+                    return NotFound();
+                }
+                return Ok(license);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex.Message}");
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> Create(License license)
+        {
+            try
+            {
+                await _context.Licenses.AddAsync(license);
+                await _context.SaveChangesAsync();
+                return Ok(license);
+            }
+            catch (DbUpdateException ex)
+            {
+                return StatusCode(500, $"An error occurred while saving changes: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex.Message}");
+            }
+        }
+
+        private bool LicenseExists(int id)
+        {
+            try
+            {
+                return _context.Licenses.Any(e => e.Id == id);
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"An error occurred while checking license existence: {ex.Message}");
+            }
+        }
+
+        [HttpPut]
+        public async Task<IActionResult> UpdateLicense([FromBody] License license)
+        {
+            try
+            {
+                if (license.Id < 1)
+                {
+                    return BadRequest();
+                }
+
+                _context.Entry(license).State = EntityState.Modified;
+
+                await _context.SaveChangesAsync();
+                return NoContent();
+            }
+            catch (DbUpdateConcurrencyException ex)
+            {
+                if (!LicenseExists(license.Id))
+                {
+                    return NotFound();
+                }
+                else
+                {
+                    throw new Exception($"An error occurred while updating license: {ex.Message}");
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex.Message}");
+            }
+        }
+
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteLicense(int id)
+        {
+            try
+            {
+                var license = await _context.Licenses.FindAsync(id);
+                if (license == null)
+                {
+                    return NotFound();
+                }
+
+                _context.Licenses.Remove(license);
+                await _context.SaveChangesAsync();
+
+                return NoContent();
+            }
+            catch (DbUpdateException ex)
+            {
+                return StatusCode(500, $"An error occurred while deleting license: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex.Message}");
+            }
+        }
+    }
+}
+
+//10.NVRController.cs
+=>using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using VMS_Project_API.Data;
+using VMS_Project_API.Entities;
+
+namespace VMS_Project_API.Controllers
+{
+    [Route("api/[controller]")]
+    [ApiController]
+    public class NVRController : ControllerBase
+    {
+        private readonly ApplicationDbContext _context;
+
+        public NVRController(ApplicationDbContext context)
+        {
+            _context = context;
+        }
+
+        [HttpGet("GetAll")]
+        public async Task<IActionResult> GetAll()
+        {
+            try
+            {
+                var ucp = await _context.NVR.ToListAsync();
+                return Ok(ucp);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex.Message}");
+            }
+        }
+
+        [HttpGet("Pagination")]
+        public async Task<IActionResult> Index(int pageNumber = 1, int pageSize = 10)
+        {
+            try
+            {
+                var query = _context.NVR.AsQueryable();
+
+                var pagedCameraActivities = await query
+                    .Skip((pageNumber - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToListAsync();
+
+                var totalCount = await query.CountAsync();
+
+                var result = new
+                {
+                    TotalCount = totalCount,
+                    PageNumber = pageNumber,
+                    PageSize = pageSize,
+                    CameraActivities = pagedCameraActivities
+                };
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex.Message}");
+            }
+        }
+
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetById(int id)
+        {
+            try
+            {
+                var cas = await _context.NVR.FirstOrDefaultAsync(u => u.Id == id);
+                if (cas == null)
+                {
+                    return NotFound();
+                }
+                return Ok(cas);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex.Message}");
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> Create(NVR nVR)
+        {
+            try
+            {
+                await _context.NVR.AddAsync(nVR);
+                await _context.SaveChangesAsync();
+                return Ok(nVR);
+            }
+            catch (DbUpdateException ex)
+            {
+                return StatusCode(500, $"An error occurred while saving changes: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex.Message}");
+            }
+        }
+
+        private bool CActivityExists(int id)
+        {
+            try
+            {
+                return _context.NVR.Any(e => e.Id == id);
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"An error occurred while checking camera activity existence: {ex.Message}");
+            }
+        }
+
+        [HttpPut]
+        public async Task<IActionResult> UpdateRole([FromBody] NVR nVR)
+        {
+            try
+            {
+                if (nVR.Id < 1)
+                {
+                    return BadRequest();
+                }
+
+                _context.NVR.Update(nVR);
+
+                await _context.SaveChangesAsync();
+                return NoContent();
+            }
+            catch (DbUpdateConcurrencyException ex)
+            {
+                if (!CActivityExists(nVR.Id))
+                {
+                    return NotFound();
+                }
+                else
+                {
+                    throw new Exception($"An error occurred while updating camera activity: {ex.Message}");
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex.Message}");
+            }
+        }
+
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteCActivity(int id)
+        {
+            try
+            {
+                var cas = await _context.NVR.FindAsync(id);
+                if (cas == null)
+                {
+                    return NotFound();
+                }
+
+                _context.NVR.Remove(cas);
+                await _context.SaveChangesAsync();
+
+                return NoContent();
+            }
+            catch (DbUpdateException ex)
+            {
+                return StatusCode(500, $"An error occurred while deleting camera activity: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex.Message}");
+            }
+        }
+    }
+}
+
+//11.RoleController.cs
+=>using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using VMS_Project_API.Data;
+using VMS_Project_API.Entities;
+
+namespace VMS_Project_API.Controllers
+{
+    [Route("api/[controller]")]
+    [ApiController]
+    [Authorize]
+    public class RoleController : ControllerBase
+    {
+        private readonly ApplicationDbContext _context;
+
+        public RoleController(ApplicationDbContext context)
+        {
+            _context = context;
+        }
+
+        [HttpGet("GetAll")]
+        public async Task<IActionResult> GetAll()
+        {
+            try
+            {
+                var ucp = await _context.Roles.ToListAsync();
+                return Ok(ucp);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex.Message}");
+            }
+        }
+
+        [HttpGet("Pagination")]
+        public async Task<IActionResult> Index(int pageNumber = 1, int pageSize = 10)
+        {
+            try
+            {
+                var query = _context.Roles.AsQueryable();
+
+                var pagedRoles = await query
+                    .Skip((pageNumber - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToListAsync();
+
+                var totalCount = await query.CountAsync();
+
+                var result = new
+                {
+                    TotalCount = totalCount,
+                    PageNumber = pageNumber,
+                    PageSize = pageSize,
+                    Roles = pagedRoles
+                };
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex.Message}");
+            }
+        }
+
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetById(int id)
+        {
+            try
+            {
+                var rol = await _context.Roles.FirstOrDefaultAsync(u => u.Id == id);
+                if (rol == null)
+                {
+                    return NotFound();
+                }
+                return Ok(rol);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex.Message}");
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> Create(Role role)
+        {
+            try
+            {
+                await _context.Roles.AddAsync(role);
+                await _context.SaveChangesAsync();
+                return Ok(role);
+            }
+            catch (DbUpdateException ex)
+            {
+                return StatusCode(500, $"An error occurred while saving changes: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex.Message}");
+            }
+        }
+
+        private bool RoleExists(int id)
+        {
+            try
+            {
+                return _context.Roles.Any(e => e.Id == id);
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"An error occurred while checking role existence: {ex.Message}");
+            }
+        }
+
+        [HttpPut]
+        public async Task<IActionResult> UpdateRole([FromBody] Role role)
+        {
+            try
+            {
+                if (role.Id < 1)
+                {
+                    return BadRequest();
+                }
+
+                _context.Roles.Update(role);
+
+                await _context.SaveChangesAsync();
+                return NoContent();
+            }
+            catch (DbUpdateConcurrencyException ex)
+            {
+                if (!RoleExists(role.Id))
+                {
+                    return NotFound();
+                }
+                else
+                {
+                    throw new Exception($"An error occurred while updating role: {ex.Message}");
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex.Message}");
+            }
+        }
+
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteRole(int id)
+        {
+            try
+            {
+                var role = await _context.Roles.FindAsync(id);
+                if (role == null)
+                {
+                    return NotFound();
+                }
+
+                _context.Roles.Remove(role);
+                await _context.SaveChangesAsync();
+
+                return NoContent();
+            }
+            catch (DbUpdateException ex)
+            {
+                return StatusCode(500, $"An error occurred while deleting role: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex.Message}");
+            }
+        }
+    }
+}
+
+//12.UserCameraPermissionController.cs
+=>using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using VMS_Project_API.Data;
+using VMS_Project_API.Entities;
+
+namespace VMS_Project_API.Controllers
+{
+    [Route("api/[controller]")]
+    [ApiController]
+    [Authorize]
+    public class UserCameraPermissionController : ControllerBase
+    {
+        private readonly ApplicationDbContext _context;
+
+        public UserCameraPermissionController(ApplicationDbContext context)
+        {
+            _context = context;
+        }
+
+        [HttpGet("GetAll")]
+        public async Task<IActionResult> GetAll()
+        {
+            try
+            {
+                var ucp = await _context.user_Camera_Permissions.ToListAsync();
+                return Ok(ucp);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex.Message}");
+            }
+        }
+
+        [HttpGet("Pagination")]
+        public async Task<IActionResult> Index(int pageNumber = 1, int pageSize = 10)
+        {
+            try
+            {
+                if (pageNumber < 1) pageNumber = 1;
+                if (pageSize < 1) pageSize = 10;
+
+                var totalItems = await _context.user_Camera_Permissions.CountAsync();
+
+                var permissions = await _context.user_Camera_Permissions
+                    .Skip((pageNumber - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToListAsync();
+
+                var response = new
+                {
+                    TotalItems = totalItems,
+                    PageNumber = pageNumber,
+                    PageSize = pageSize,
+                    TotalPages = (int)Math.Ceiling(totalItems / (double)pageSize),
+                    Items = permissions
+                };
+
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex.Message}");
+            }
+        }
+
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetById(int id)
+        {
+            try
+            {
+                var permission = await _context.user_Camera_Permissions.FirstOrDefaultAsync(u => u.Id == id);
+                if (permission == null)
+                {
+                    return NotFound();
+                }
+                return Ok(permission);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex.Message}");
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> Create(User_Camera_Permission permission)
+        {
+            try
+            {
+                await _context.user_Camera_Permissions.AddAsync(permission);
+                await _context.SaveChangesAsync();
+                return CreatedAtAction(nameof(GetById), new { id = permission.Id }, permission);
+            }
+            catch (DbUpdateException ex)
+            {
+                return StatusCode(500, $"An error occurred while saving changes: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex.Message}");
+            }
+        }
+
+        private bool UserCameraPermissionExists(int id)
+        {
+            try
+            {
+                return _context.user_Camera_Permissions.Any(e => e.Id == id);
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"An error occurred while checking user camera permission existence: {ex.Message}");
+            }
+        }
+
+        [HttpPut]
+        public async Task<IActionResult> UpdateUserCameraPermission([FromBody] User_Camera_Permission permission)
+        {
+            try
+            {
+                if (permission.Id < 1)
+                {
+                    return BadRequest("Invalid permission ID.");
+                }
+
+                if (!UserCameraPermissionExists(permission.Id))
+                {
+                    return NotFound();
+                }
+
+                _context.user_Camera_Permissions.Update(permission);
+                await _context.SaveChangesAsync();
+                return NoContent();
+            }
+            catch (DbUpdateConcurrencyException ex)
+            {
+                return StatusCode(500, $"An error occurred while updating user camera permission: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex.Message}");
+            }
+        }
+
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteUserCameraPermission(int id)
+        {
+            try
+            {
+                var permission = await _context.user_Camera_Permissions.FindAsync(id);
+                if (permission == null)
+                {
+                    return NotFound();
+                }
+
+                _context.user_Camera_Permissions.Remove(permission);
+                await _context.SaveChangesAsync();
+
+                return NoContent();
+            }
+            catch (DbUpdateException ex)
+            {
+                return StatusCode(500, $"An error occurred while deleting user camera permission: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex.Message}");
+            }
+        }
+    }
+}
+
+//13.UserController.cs
+=>using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using VMS_Project_API.Data;
+using VMS_Project_API.Entities;
+
+namespace VMS_Project_API.Controllers
+{
+    [Route("api/[controller]")]
+    [ApiController]
+    [Authorize]
+    public class UserController : ControllerBase
+    {
+        private readonly ApplicationDbContext _context;
+
+        public UserController(ApplicationDbContext context)
+        {
+            _context = context;
+        }
+
+        [HttpGet("GetAll")]
+        public async Task<IActionResult> GetAll()
+        {
+            try
+            {
+                var ucp = await _context.Users.ToListAsync();
+                return Ok(ucp);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex.Message}");
+            }
+        }
+
+        [HttpGet("Pagination")]
+        public async Task<IActionResult> Index([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
+        {
+            try
+            {
+                var totalRecords = await _context.Users.CountAsync();
+                var totalPages = (int)Math.Ceiling(totalRecords / (double)pageSize);
+
+                var users = await _context.Users
+                    .Skip((pageNumber - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToListAsync();
+
+                var response = new
+                {
+                    TotalRecords = totalRecords,
+                    TotalPages = totalPages,
+                    CurrentPage = pageNumber,
+                    PageSize = pageSize,
+                    Users = users
+                };
+
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex.Message}");
+            }
+        }
+
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetById(int id)
+        {
+            try
+            {
+                var urs = await _context.Users.FirstOrDefaultAsync(u => u.Id == id);
+                if (urs == null)
+                {
+                    return NotFound();
+                }
+                return Ok(urs);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex.Message}");
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> Create(User user)
+        {
+            try
+            {
+                await _context.Users.AddAsync(user);
+                await _context.SaveChangesAsync();
+                return Ok(user);
+            }
+            catch (DbUpdateException ex)
+            {
+                return StatusCode(500, $"An error occurred while saving changes: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex.Message}");
+            }
+        }
+
+        private bool GrpExists(int id)
+        {
+            try
+            {
+                return _context.Users.Any(e => e.Id == id);
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"An error occurred while checking user existence: {ex.Message}");
+            }
+        }
+
+        [HttpPut]
+        public async Task<IActionResult> UpdateUser([FromBody] User user)
+        {
+            try
+            {
+                if (user.Id < 1)
+                {
+                    return BadRequest();
+                }
+
+                _context.Entry(user).State = EntityState.Modified;
+
+                await _context.SaveChangesAsync();
+                return NoContent();
+            }
+            catch (DbUpdateConcurrencyException ex)
+            {
+                if (!GrpExists(user.Id))
+                {
+                    return NotFound();
+                }
+                else
+                {
+                    throw new Exception($"An error occurred while updating user: {ex.Message}");
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex.Message}");
+            }
+        }
+
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteUser(int id)
+        {
+            try
+            {
+                var urs = await _context.Users.FindAsync(id);
+                if (urs == null)
+                {
+                    return NotFound();
+                }
+
+                _context.Users.Remove(urs);
+                await _context.SaveChangesAsync();
+
+                return NoContent();
+            }
+            catch (DbUpdateException ex)
+            {
+                return StatusCode(500, $"An error occurred while deleting user: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex.Message}");
+            }
+        }
+    }
+}
+
+
