@@ -1,0 +1,147 @@
+//Token and Login Code Provide by Mohan Sir
+//Program.cs
+=>
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
+using System.Text;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// Add services to the container.
+
+builder.Services.AddControllers();
+// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc("V1", new OpenApiInfo
+    {
+        Version = "V1",
+        Title = "WebAPI",
+        Description = "VMSAPI"
+    });
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Scheme = "Bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Name = "Authorization",
+        Description = "Bearer Authentication with JWT Token",
+        Type = SecuritySchemeType.Http
+    });
+    options.AddSecurityRequirement(new OpenApiSecurityRequirement {
+        {
+            new OpenApiSecurityScheme {
+                Reference = new OpenApiReference {
+                    Id = "Bearer",
+                        Type = ReferenceType.SecurityScheme
+                }
+            },
+            new List < string > ()
+        }
+    });
+});
+
+
+builder.Services.AddAuthentication(opt =>
+{
+    opt.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    opt.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+}).AddJwtBearer(options =>
+{
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = GlobalModels.JWTValidIssuer,
+        ValidAudience = GlobalModels.JWTValidAudience,
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(GlobalModels.JWTSecret))
+    };
+});
+
+var app = builder.Build();
+
+app.UseSwagger();
+app.UseSwaggerUI(options =>
+{
+    options.SwaggerEndpoint("/swagger/V1/swagger.json", "VMSAPI");
+});
+
+//app.UseHttpsRedirection();
+app.UseAuthentication();
+app.UseAuthorization();
+app.MapControllers();
+app.UseCors(x => x.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
+
+app.Run();
+
+
+
+
+//AuthController.cs
+=>
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
+using VMSAPI.Data;
+
+namespace VMSAPI.Controllers
+{
+    [Route("[controller]")]
+    [ApiController]
+    public class AuthenticationController : ControllerBase
+    {
+
+
+        UserService objUser = new UserService();
+
+        [HttpPost("login")]
+        public IActionResult Login([FromBody] Login user)
+        {
+            if (user is null)
+            {
+                return BadRequest("Invalid user request!!!");
+            }
+            if (user.UserName == GlobalModels.LoginUserName && user.Password == GlobalModels.LoginPassword)
+            {
+                var secretKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(GlobalModels.JWTSecret));
+                var signinCredentials = new SigningCredentials(secretKey, SecurityAlgorithms.HmacSha256);
+                var tokeOptions = new JwtSecurityToken(issuer: GlobalModels.JWTValidIssuer, audience: GlobalModels.JWTValidAudience, claims: new List<Claim>(), expires: DateTime.Now.AddDays(1), signingCredentials: signinCredentials);
+                var tokenString = new JwtSecurityTokenHandler().WriteToken(tokeOptions);
+                return Ok(new JWTTokenResponse
+                {
+                    Token = tokenString
+                });
+            }
+            return Unauthorized();
+        }
+    }
+
+    public class Login
+    {
+        public string? UserName
+        {
+            get;
+            set;
+        }
+        public string? Password
+        {
+            get;
+            set;
+        }
+    }
+
+    public class JWTTokenResponse
+    {
+        public string? Token
+        {
+            get;
+            set;
+        }
+    }
+}
