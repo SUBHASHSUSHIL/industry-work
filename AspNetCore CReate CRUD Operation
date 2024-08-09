@@ -1,0 +1,542 @@
+1.Create Model.
+2.Create ConnectionDbContext(ADO Connectivity).
+3.Create Controller.
+4.Generate view Component.
+
+1.Create Model.
+=>1.first model
+namespace SchoolProject.Models
+{
+    public class StudentInfo
+    {
+        public int Id { get; set; }
+        public string? Name { get; set; } 
+        public string? Email { get; set; }
+        public string? FathersName { get; set; }
+        public string? Address { get; set; }
+        public string? Class { get; set; }
+        public string? RollNo { get; set; }
+    }
+}
+
+=>2.second model(Error Check)
+namespace SchoolProject.Models
+{
+    public class ErrorViewModel
+    {
+        public string? RequestId { get; set; }
+
+        public bool ShowRequestId => !string.IsNullOrEmpty(RequestId);
+    }
+}
+
+
+2.Create ConnectionDbContext(ADO Connectivity).
+=>
+using Microsoft.Data.SqlClient;
+using SchoolProject.Models;
+using System.Collections.Generic;
+using System.Data;
+
+namespace SchoolProject.DatabaseC
+{
+    public class DbConnection
+    {
+        string ConnectionStrings = "server=DESKTOP-NATOEVE\\SQLEXPRESS; initial catalog=School; integrated security=true; TrustServerCertificate=True;";
+
+        public IEnumerable<StudentInfo> GetAll()
+        {
+            List<StudentInfo> list = new List<StudentInfo>();
+            SqlConnection con = new SqlConnection(ConnectionStrings);
+            SqlCommand cmd = new SqlCommand("_SelectReg", con);
+            cmd.CommandType = CommandType.StoredProcedure;
+            if (con.State == ConnectionState.Closed)
+            {
+                con.Open();
+            }
+            SqlDataReader dr = cmd.ExecuteReader();
+            while (dr.Read())
+            {
+                StudentInfo student = new StudentInfo();
+                student.Id = Convert.ToInt32(dr["RegId"]);
+                student.Name = dr["Name"].ToString() ?? "";
+                student.Email = dr["Email"].ToString() ?? "";
+                student.FathersName = dr["Fathers_Name"].ToString() ?? "";
+                student.Address = dr["Address"].ToString() ?? "";
+                student.Class = dr["Class"].ToString() ?? "";
+                student.RollNo = dr["RollNo"].ToString() ?? "";
+                list.Add(student);
+            }
+            if (con.State == ConnectionState.Open)
+            {
+                con.Close();
+            }
+            return list;
+        }
+
+        public void AddEmployee(StudentInfo student)
+        {
+            SqlConnection con = new SqlConnection(ConnectionStrings);
+            SqlCommand cmd = new SqlCommand("_Registration", con);
+            cmd.CommandType = CommandType.StoredProcedure;
+            cmd.Parameters.AddWithValue("@Name", student.Name);
+            cmd.Parameters.AddWithValue("@Email", student.Email);
+            cmd.Parameters.AddWithValue("@Fathers_Name", student.FathersName);
+            cmd.Parameters.AddWithValue("@Address", student.Address);
+            cmd.Parameters.AddWithValue("@Class", student.Class);
+            cmd.Parameters.AddWithValue("@RollNo", student.RollNo);
+            if (con.State == ConnectionState.Closed)
+            {
+                con.Open();
+            }
+            cmd.ExecuteNonQuery();
+            if (con.State == ConnectionState.Open)
+            {
+                con.Close();
+            }
+        }
+
+        public void DeleteEmployee(int? id)
+        {
+            SqlConnection con = new SqlConnection(ConnectionStrings);
+            SqlCommand cmd = new SqlCommand("_deleteReg", con);
+            cmd.CommandType = CommandType.StoredProcedure;
+            cmd.Parameters.AddWithValue("@RegId", id);
+            if (con.State == ConnectionState.Closed)
+            {
+                con.Open();
+            }
+            cmd.ExecuteNonQuery();
+            if (con.State == ConnectionState.Open)
+            {
+                con.Close();
+            }
+        }
+
+        public void UpdateEmployee(StudentInfo std)
+        {
+            using (SqlConnection con = new SqlConnection(ConnectionStrings))
+            {
+                SqlCommand cmd = new SqlCommand("_RegUpdate", con);
+                cmd.CommandType = CommandType.StoredProcedure;
+                cmd.Parameters.AddWithValue("@RegId", std.Id);
+                cmd.Parameters.AddWithValue("@Name", std.Name);
+                cmd.Parameters.AddWithValue("@Email", std.Email);
+                cmd.Parameters.AddWithValue("@Fathers_Name", std.FathersName);
+                cmd.Parameters.AddWithValue("@Address", std.Address);
+                cmd.Parameters.AddWithValue("@Class", std.Class);
+                cmd.Parameters.AddWithValue("@RollNo", std.RollNo);
+                if (con.State == ConnectionState.Closed)
+                {
+                    con.Open();
+                }
+                cmd.ExecuteNonQuery();
+                if (con.State == ConnectionState.Open)
+                {
+                    con.Close();
+                }
+            }
+        }
+
+        public StudentInfo EmployeeSelect(int? id)
+        {
+            StudentInfo emp = new StudentInfo();
+            using (SqlConnection con = new SqlConnection(ConnectionStrings))
+            {
+                SqlCommand cmd = new SqlCommand("_SelectRegId", con);
+                cmd.CommandType = CommandType.StoredProcedure;
+                cmd.Parameters.AddWithValue("@RegId", id);
+                if (con.State == ConnectionState.Closed)
+                {
+                    con.Open();
+                }
+                SqlDataReader dr = cmd.ExecuteReader();
+                if (dr.Read())
+                {
+                    emp.Id = Convert.ToInt32(dr["RegId"]);
+                    emp.Name = dr["Name"].ToString() ?? "";
+                    emp.Email = dr["Email"].ToString() ?? "";
+                    emp.FathersName = dr["Fathers_Name"].ToString() ?? "";
+                    emp.Address = dr["Address"].ToString() ?? "";
+                    emp.Class = dr["Class"].ToString() ?? "";
+                    emp.RollNo = dr["RollNo"].ToString() ?? "";
+                }
+                if (con.State == ConnectionState.Open)
+                {
+                    con.Close();
+                }
+            }
+            return emp;
+        }
+    }
+}
+
+3.Create Controller.
+=>
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Rendering;
+using SchoolProject.DatabaseC;
+using SchoolProject.Models;
+
+namespace SchoolProject.Controllers
+{
+    public class StudentController : Controller
+    {
+        private readonly DbConnection _dbConnection;
+
+        public StudentController(DbConnection dbConnection)
+        {
+            _dbConnection = dbConnection;
+        }
+
+        public IActionResult Index()
+        {
+            var students = _dbConnection.GetAll();
+            return View(students);
+        }
+
+        public IActionResult Details(int id)
+        {
+            var student = _dbConnection.EmployeeSelect(id);
+            if (student == null)
+            {
+                return NotFound();
+            }
+            return View(student);
+        }
+
+        public IActionResult Create()
+        {
+            return View();
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult Create(StudentInfo student)
+        {
+            if (ModelState.IsValid)
+            {
+                _dbConnection.AddEmployee(student);
+                return RedirectToAction(nameof(Index));
+            }
+            return View(student);
+        }
+
+        
+        public IActionResult Edit(int id)
+        {
+            var student = _dbConnection.EmployeeSelect(id);
+            if (student == null)
+            {
+                return NotFound();
+            }
+            return View(student);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult Edit(int id, StudentInfo student)
+        {
+            if (id != student.Id)
+            {
+                return BadRequest();
+            }
+
+            if (ModelState.IsValid)
+            {
+                _dbConnection.UpdateEmployee(student);
+                return RedirectToAction(nameof(Index));
+            }
+            return View(student);
+        }
+
+        public IActionResult Delete(int id)
+        {
+            var student = _dbConnection.EmployeeSelect(id);
+            if (student == null)
+            {
+                return NotFound();
+            }
+            return View(student);
+        }
+
+        [HttpPost, ActionName("Delete")]
+        [ValidateAntiForgeryToken]
+        public IActionResult DeleteConfirmed(int id)
+        {
+            _dbConnection.DeleteEmployee(id);
+            return RedirectToAction(nameof(Index));
+        }
+    }
+}
+
+4.Generate view Component.
+=>(Create/Insert)
+@model SchoolProject.Models.StudentInfo
+
+@{
+    ViewData["Title"] = "Create";
+}
+
+<h2>@ViewData["Title"]</h2>
+
+<h4>StudentInfo</h4>
+<hr />
+<div class="row">
+    <div class="col-md-4">
+        <form asp-action="Create">
+            <div class="form-group">
+                <label asp-for="Name" class="control-label"></label>
+                <input asp-for="Name" class="form-control" />
+                <span asp-validation-for="Name" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="Email" class="control-label"></label>
+                <input asp-for="Email" class="form-control" />
+                <span asp-validation-for="Email" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="FathersName" class="control-label"></label>
+                <input asp-for="FathersName" class="form-control" />
+                <span asp-validation-for="FathersName" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="Address" class="control-label"></label>
+                <input asp-for="Address" class="form-control" />
+                <span asp-validation-for="Address" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="Class" class="control-label"></label>
+                <input asp-for="Class" class="form-control" />
+                <span asp-validation-for="Class" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="RollNo" class="control-label"></label>
+                <input asp-for="RollNo" class="form-control" />
+                <span asp-validation-for="RollNo" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <input type="submit" value="Create" class="btn btn-primary" />
+            </div>
+        </form>
+    </div>
+</div>
+<div>
+    <a asp-action="Index">Back to List</a>
+</div>
+
+=>(Edit/Update)
+@model SchoolProject.Models.StudentInfo
+
+@{
+    ViewData["Title"] = "Edit Student";
+}
+
+<h1>Edit Student</h1>
+
+<h4>StudentInfo</h4>
+<hr />
+<div class="row">
+    <div class="col-md-4">
+        <form asp-action="Edit">
+            <div class="form-group">
+                <label asp-for="Name" class="control-label"></label>
+                <input asp-for="Name" class="form-control" />
+                <span asp-validation-for="Name" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="Email" class="control-label"></label>
+                <input asp-for="Email" class="form-control" />
+                <span asp-validation-for="Email" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="FathersName" class="control-label"></label>
+                <input asp-for="FathersName" class="form-control" />
+                <span asp-validation-for="FathersName" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="Address" class="control-label"></label>
+                <input asp-for="Address" class="form-control" />
+                <span asp-validation-for="Address" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="Class" class="control-label"></label>
+                <input asp-for="Class" class="form-control" />
+                <span asp-validation-for="Class" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="RollNo" class="control-label"></label>
+                <input asp-for="RollNo" class="form-control" />
+                <span asp-validation-for="RollNo" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <input type="submit" value="Save" class="btn btn-primary" />
+            </div>
+        </form>
+    </div>
+</div>
+
+<div>
+    <a asp-action="Index">Back to List</a>
+</div>
+
+=>(Select/Details)
+@model SchoolProject.Models.StudentInfo
+
+@{
+    ViewData["Title"] = "Details";
+}
+
+<h2>@ViewData["Title"]</h2>
+
+<div>
+    <h4>StudentInfo</h4>
+    <hr />
+    <dl class="row">
+        <dt class="col-sm-2">
+            Name
+        </dt>
+        <dd class="col-sm-10">
+            @Html.DisplayFor(model => model.Name)
+        </dd>
+        <dt class="col-sm-2">
+            Email
+        </dt>
+        <dd class="col-sm-10">
+            @Html.DisplayFor(model => model.Email)
+        </dd>
+        <dt class="col-sm-2">
+            Fathers Name
+        </dt>
+        <dd class="col-sm-10">
+            @Html.DisplayFor(model => model.FathersName)
+        </dd>
+        <dt class="col-sm-2">
+            Address
+        </dt>
+        <dd class="col-sm-10">
+            @Html.DisplayFor(model => model.Address)
+        </dd>
+        <dt class="col-sm-2">
+            Class
+        </dt>
+        <dd class="col-sm-10">
+            @Html.DisplayFor(model => model.Class)
+        </dd>
+        <dt class="col-sm-2">
+            Roll No
+        </dt>
+        <dd class="col-sm-10">
+            @Html.DisplayFor(model => model.RollNo)
+        </dd>
+    </dl>
+</div>
+<div>
+    <a asp-action="Edit" asp-route-id="@Model.Id">Edit</a> |
+    <a asp-action="Index">Back to List</a>
+</div>
+
+=>(Delete/Remove)
+@model SchoolProject.Models.StudentInfo
+
+@{
+    ViewData["Title"] = "Delete Student";
+}
+
+<h1>Delete Student</h1>
+
+<h4>Are you sure you want to delete this?</h4>
+<hr />
+<dl class="row">
+    <dt class="col-sm-2">
+        @Html.DisplayNameFor(model => model.Name)
+    </dt>
+    <dd class="col-sm-10">
+        @Html.DisplayFor(model => model.Name)
+    </dd>
+    <dt class="col-sm-2">
+        @Html.DisplayNameFor(model => model.Email)
+    </dt>
+    <dd class="col-sm-10">
+        @Html.DisplayFor(model => model.Email)
+    </dd>
+    <dt class="col-sm-2">
+        @Html.DisplayNameFor(model => model.FathersName)
+    </dt>
+    <dd class="col-sm-10">
+        @Html.DisplayFor(model => model.FathersName)
+    </dd>
+    <dt class="col-sm-2">
+        @Html.DisplayNameFor(model => model.Address)
+    </dt>
+    <dd class="col-sm-10">
+        @Html.DisplayFor(model => model.Address)
+    </dd>
+    <dt class="col-sm-2">
+        @Html.DisplayNameFor(model => model.Class)
+    </dt>
+    <dd class="col-sm-10">
+        @Html.DisplayFor(model => model.Class)
+    </dd>
+    <dt class="col-sm-2">
+        @Html.DisplayNameFor(model => model.RollNo)
+    </dt>
+    <dd class="col-sm-10">
+        @Html.DisplayFor(model => model.RollNo)
+    </dd>
+</dl>
+
+<form asp-action="DeleteConfirmed">
+    <input type="hidden" asp-for="Id" />
+    <div class="form-group">
+        <input type="submit" value="Delete" class="btn btn-danger" /> |
+        <a asp-action="Index">Back to List</a>
+    </div>
+</form>
+
+=>(All List Formate)
+@model IEnumerable<SchoolProject.Models.StudentInfo>
+
+@{
+    ViewData["Title"] = "Students List";
+}
+
+<h1>Students List</h1>
+
+<p>
+    <a asp-action="Create">Create New</a>
+</p>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Id</th>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Fathers Name</th>
+            <th>Address</th>
+            <th>Class</th>
+            <th>Roll No</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var item in Model)
+        {
+            <tr>
+                <td>@item.Id</td>
+                <td>@item.Name</td>
+                <td>@item.Email</td>
+                <td>@item.FathersName</td>
+                <td>@item.Address</td>
+                <td>@item.Class</td>
+                <td>@item.RollNo</td>
+                <td>
+                    <a asp-action="Edit" asp-route-id="@item.Id">Edit</a> |
+                    <a asp-action="Details" asp-route-id="@item.Id">Details</a> |
+                    <a asp-action="Delete" asp-route-id="@item.Id">Delete</a>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
